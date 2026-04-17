@@ -1,7 +1,7 @@
 import duckdb
 from pydantic_ai import RunContext
 
-from src.agent.context import AgentContext
+from src.agent.context import MAX_TABLE_ROWS, AgentContext
 
 
 async def query_data(
@@ -29,10 +29,24 @@ async def query_data(
 
         ctx.deps.current_dataframe = result_df
 
-        preview = result_df.head(5).to_string(index=False)
+        total_rows = len(result_df)
+        truncated = total_rows > MAX_TABLE_ROWS
+        display_df = result_df.head(MAX_TABLE_ROWS)
+
+        ctx.deps.emit_payload(
+            {
+                "kind": "table",
+                "columns": result_df.columns.tolist(),
+                "rows": display_df.values.tolist(),
+                "total_rows": total_rows,
+                "truncated": truncated,
+            }
+        )
+
+        preview = display_df.head(5).to_string(index=False)
         return (
             f"Query executed successfully.\n"
-            f"Result: {result_df.shape[0]} rows x {result_df.shape[1]} columns\n"
+            f"Result: {total_rows} rows x {result_df.shape[1]} columns\n"
             f"Columns: {', '.join(result_df.columns.tolist())}\n"
             f"Preview:\n{preview}"
         )

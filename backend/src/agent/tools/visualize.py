@@ -1,5 +1,4 @@
-import re
-from pathlib import Path
+import json
 from typing import Literal
 
 import pandas as pd
@@ -7,9 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from pydantic_ai import RunContext
 
-from src.agent.context import AgentContext
-
-OUTPUT_DIR = Path("/tmp/output")
+from src.agent.context import MAX_PLOT_ROWS, MAX_TABLE_ROWS, AgentContext
 
 
 async def visualize(
@@ -34,37 +31,51 @@ async def visualize(
     if ctx.deps.current_dataframe is None:
         return "Error: No data available. Call query_data first."
 
-    df = ctx.deps.current_dataframe
+    # Cap rows before plot to avoid multi-MB SSE payloads
+    df = ctx.deps.current_dataframe.head(MAX_PLOT_ROWS)
 
     try:
         namespace = {"df": df.copy(), "pd": pd, "px": px, "go": go}
         exec(code, namespace)  # noqa: S102
 
-        safe_title = re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_").lower()
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
         if result_type == "figure":
             fig = namespace.get("fig")
             if fig is None:
                 return "Error: Code must create a 'fig' variable (plotly Figure)."
-            filepath = OUTPUT_DIR / f"{safe_title}.html"
-            fig.write_html(str(filepath))
+
+            ctx.deps.emit_payload(
+                {
+                    "kind": "figure",
+                    "title": title,
+                    "plotly": json.loads(fig.to_json()),
+                }
+            )
             return (
                 f"Figure created: {title}\n"
-                f"Saved to: {filepath}\n"
                 f"Type: {type(fig).__name__}\n"
                 f"Traces: {len(fig.data)}"
             )
 
         if result_type == "table":
-            result = namespace.get("result", df)
-            filepath = OUTPUT_DIR / f"{safe_title}.csv"
-            result.to_csv(str(filepath), index=False)
+            result: pd.DataFrame = namespace.get("result", df)
+            total_rows = len(result)
+            truncated = total_rows > MAX_TABLE_ROWS
+            display_df = result.head(MAX_TABLE_ROWS)
+
+            ctx.deps.emit_payload(
+                {
+                    "kind": "table",
+                    "title": title,
+                    "columns": result.columns.tolist(),
+                    "rows": display_df.values.tolist(),
+                    "total_rows": total_rows,
+                    "truncated": truncated,
+                }
+            )
             return (
                 f"Table created: {title}\n"
-                f"Saved to: {filepath}\n"
                 f"Shape: {result.shape[0]} rows x {result.shape[1]} columns\n"
-                f"Preview:\n{result.head(10).to_string(index=False)}"
+                f"Preview:\n{display_df.head(5).to_string(index=False)}"
             )
 
         return f"Error: Unknown result_type '{result_type}'. Use 'figure' or 'table'."
