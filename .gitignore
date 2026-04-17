@@ -8,9 +8,16 @@ output/
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node / Vite
+node_modules/
+dist/
 
 # Env
 .env
 .venv/
 
-output/
+# Planning interne (ne pas exposer dans le repo public)
+ROADMAP.md

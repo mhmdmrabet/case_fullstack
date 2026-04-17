@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.env
+.env.*
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.vscode
+.idea
+output
+ROADMAP.md
