@@ -1,15 +1,24 @@
-"""FastAPI entrypoint.
-
-Step 1 scaffold: minimal app with a health endpoint so `docker compose up` has
-something to probe. Real routes (datasets, chat/stream) land in later steps.
-"""
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.deps import get_dataset_registry
+from src.api.routes import datasets, health
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Warm up the dataset registry cache at startup
+    get_dataset_registry()
+    yield
+
+
 app = FastAPI(
     title="case-fullstack API",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -20,7 +29,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+app.include_router(health.router)
+app.include_router(datasets.router)

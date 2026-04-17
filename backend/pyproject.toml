@@ -10,6 +10,10 @@ dependencies = [
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",
     "python-dotenv>=1.0.0",
+    "pydantic-ai-slim[anthropic,google-genai]>=0.0.36",
+    "duckdb>=0.9.0",
+    "plotly>=5.0.0",
+    "pandas>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +37,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/agent/prompt.py" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
