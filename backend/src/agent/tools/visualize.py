@@ -43,11 +43,12 @@ async def visualize(
             if fig is None:
                 return "Error: Code must create a 'fig' variable (plotly Figure)."
 
+            # validate=False → compact JSON (no newlines) — critical for SSE framing
             ctx.deps.emit_payload(
                 {
                     "kind": "figure",
                     "title": title,
-                    "plotly": json.loads(fig.to_json()),
+                    "plotly": json.loads(fig.to_json(validate=False)),
                 }
             )
             return (
