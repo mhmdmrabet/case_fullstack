@@ -33,8 +33,10 @@ async def stream_chat(
         request=request,
         session_manager=sessions,
     ):
+        # Pass the dict (not JSON string) so FastAPI encodes it once; otherwise
+        # the data: field ships a double-encoded JSON string.
         yield ServerSentEvent(
             event=event.type,
-            data=event.model_dump_json(),
+            data=event.model_dump(mode="json"),
             id=str(event.seq),
         )

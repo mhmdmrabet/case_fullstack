@@ -1,76 +1,85 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-
-type DatasetInfo = {
-  name: string
-  row_count: number
-  columns: string[]
-  dtypes: Record<string, string>
-}
+import { Textarea } from "@/components/ui/textarea"
+import { useChatStream } from "@/hooks/useChatStream"
 
 function App() {
-  const [datasets, setDatasets] = useState<DatasetInfo[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch("/api/datasets")
-      .then((r) => r.json())
-      .then(setDatasets)
-      .catch((e) => setError(String(e)))
-  }, [])
+  const [question, setQuestion] = useState(
+    "Combien de lignes dans le dataset sales ?",
+  )
+  const { state, send, stop } = useChatStream()
+  const isStreaming = state.status === "streaming"
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12">
-      <header className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          case_fullstack
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Frontend scaffold — Vite + React 19 + Tailwind 4 + shadcn/ui
+    <main className="mx-auto max-w-4xl px-6 py-12 space-y-6">
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight">case_fullstack</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Étape 8 — smoke test SSE (`useChatStream`). Les events arrivent dans l'état
+          et s'impriment aussi dans la console navigateur.
         </p>
       </header>
 
-      <section>
-        <h2 className="text-xl font-medium mb-4">Datasets</h2>
-        {error && (
-          <Card className="border-destructive">
-            <CardContent className="pt-6 text-destructive">
-              Erreur : {error}
-            </CardContent>
-          </Card>
+      <div className="flex gap-2">
+        <Textarea
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Pose une question…"
+          className="min-h-[60px]"
+          disabled={isStreaming}
+        />
+        {isStreaming ? (
+          <Button onClick={stop} variant="destructive" className="cursor-pointer">
+            Stop
+          </Button>
+        ) : (
+          <Button
+            onClick={() => send(question)}
+            disabled={!question.trim()}
+            className="cursor-pointer"
+          >
+            Send
+          </Button>
         )}
-        {!error && !datasets && (
-          <div className="space-y-3">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
+      </div>
+
+      <div className="text-xs text-muted-foreground">
+        status: <Badge variant="secondary">{state.status}</Badge>
+        {state.sessionId && (
+          <span className="ml-2">
+            session: <code>{state.sessionId.slice(0, 8)}…</code>
+          </span>
         )}
-        {datasets && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {datasets.map((d) => (
-              <Card key={d.name}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <code className="text-sm">{d.name}</code>
-                    <Badge variant="secondary">
-                      {d.row_count} rows × {d.columns.length} cols
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {d.columns.slice(0, 6).join(", ")}
-                    {d.columns.length > 6 ? "…" : ""}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+      </div>
+
+      {state.messages.map((msg) => (
+        <Card key={msg.id}>
+          <CardHeader>
+            <CardTitle className="text-base">
+              <Badge variant="outline" className="mr-2">
+                {msg.status}
+              </Badge>
+              {msg.question}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="whitespace-pre-wrap text-xs bg-muted rounded p-3 overflow-auto max-h-[60vh]">
+              {JSON.stringify(msg.parts, null, 2)}
+            </pre>
+            {msg.error && (
+              <p className="text-destructive mt-2 text-sm">{msg.error}</p>
+            )}
+            {msg.usage && (
+              <p className="text-muted-foreground mt-2 text-xs">
+                Tokens in: {msg.usage.input_tokens} · out: {msg.usage.output_tokens}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ))}
     </main>
   )
 }
