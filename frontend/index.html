@@ -1,24 +1,13 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>case_fullstack — scaffold</title>
-    <style>
-      body { font-family: system-ui, sans-serif; margin: 4rem auto; max-width: 40rem; color: #222; }
-      code { background: #f3f3f3; padding: 0.1rem 0.3rem; border-radius: 3px; }
-    </style>
+    <title>case_fullstack</title>
   </head>
   <body>
-    <h1>case_fullstack — frontend scaffold</h1>
-    <p>Placeholder pour l'étape 1. Vite + React + Tailwind + shadcn/ui arrivent à l'étape 7 de la roadmap.</p>
-    <p>Vérifier que <code>/api/health</code> répond :</p>
-    <pre id="out">…</pre>
-    <script>
-      fetch('/api/health')
-        .then(r => r.json())
-        .then(j => { document.getElementById('out').textContent = JSON.stringify(j, null, 2); })
-        .catch(e => { document.getElementById('out').textContent = 'Erreur: ' + e.message; });
-    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
