@@ -1,4 +1,6 @@
 import { TextStream } from "@/components/stream/TextStream"
+import { ThinkingBlock } from "@/components/stream/ThinkingBlock"
+import { ToolCallCard } from "@/components/stream/ToolCallCard"
 import type { AssistantMessage, MessagePart } from "@/state/chat-reducer"
 
 type Props = {
@@ -7,6 +9,7 @@ type Props = {
 
 export function MessageItem({ message }: Props) {
   const isStreaming = message.status === "streaming"
+  const lastIndex = message.parts.length - 1
 
   return (
     <article className="space-y-4">
@@ -23,7 +26,7 @@ export function MessageItem({ message }: Props) {
           <PartRenderer
             key={i}
             part={part}
-            isLast={i === message.parts.length - 1}
+            isLast={i === lastIndex}
             isStreaming={isStreaming}
           />
         ))}
@@ -51,19 +54,14 @@ function PartRenderer({
       return <TextStream content={part.content} isStreaming={isLast && isStreaming} />
 
     case "thinking":
-      // Minimal placeholder — replaced by <ThinkingBlock> in step 10.
       return (
-        <div className="border-l-2 border-muted pl-3 text-xs italic text-muted-foreground">
-          {part.content}
-        </div>
+        <ThinkingBlock
+          content={part.content}
+          isStreaming={isLast && isStreaming}
+        />
       )
 
     case "tool_call":
-      // Minimal placeholder — replaced by <ToolCallCard> in step 10.
-      return (
-        <div className="rounded bg-muted p-2 font-mono text-xs">
-          {part.name}() → {part.status}
-        </div>
-      )
+      return <ToolCallCard toolCall={part} />
   }
 }
