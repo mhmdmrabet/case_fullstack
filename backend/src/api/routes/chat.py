@@ -16,6 +16,9 @@ class ChatRequest(BaseModel):
 
 # FastAPI 0.136+ SSE pattern: the endpoint IS an async generator.
 # It yields ServerSentEvent directly — no EventSourceResponse wrapper needed.
+# Keepalive is built-in: a `: ping` SSE comment is emitted every 15s by the
+# framework, so the connection survives idle periods (long LLM turns, slow
+# tool calls) without extra code here.
 @router.post("/stream", response_class=EventSourceResponse)
 async def stream_chat(
     body: ChatRequest,
