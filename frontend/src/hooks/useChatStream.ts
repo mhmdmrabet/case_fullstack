@@ -57,7 +57,12 @@ export function useChatStream(): UseChatStream {
         },
       )
     } catch (err) {
-      if ((err as Error).name === "AbortError") return
+      if ((err as Error).name === "AbortError") {
+        // User clicked Stop (or navigated away). Flip status back to "done"
+        // so the composer becomes interactive again.
+        dispatch({ type: "STOPPED" })
+        return
+      }
       const message = (err as Error).message
       toast.error("Connexion interrompue", { description: message })
       dispatch({ type: "ERROR", message })

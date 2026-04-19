@@ -16,7 +16,7 @@ export type ToolCallPart = {
   name: string
   argsRaw: string
   argsDone: Record<string, unknown> | string | null
-  status: "pending" | "success" | "error"
+  status: "pending" | "success" | "error" | "cancelled"
   summary?: string
   payload: ToolResultPayload | null
 }
@@ -71,6 +71,7 @@ export type ChatAction =
     }
   | { type: "RUN_DONE"; usage: UsageData }
   | { type: "ERROR"; message: string }
+  | { type: "STOPPED" }
 
 // ---------------------------------------------------------------------------
 // SseEvent → ChatAction
@@ -214,6 +215,27 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
             ? { ...m, status: "error", error: action.message }
             : m,
         ),
+      }
+
+    case "STOPPED":
+      return {
+        ...state,
+        status: "done",
+        messages: state.messages.map((m, i) => {
+          if (i !== state.messages.length - 1 || m.status !== "streaming") {
+            return m
+          }
+          return {
+            ...m,
+            status: "done",
+            // Any tool call still in flight when the user stops is "cancelled".
+            parts: m.parts.map((p) =>
+              p.kind === "tool_call" && p.status === "pending"
+                ? { ...p, status: "cancelled" }
+                : p,
+            ),
+          }
+        }),
       }
   }
 }

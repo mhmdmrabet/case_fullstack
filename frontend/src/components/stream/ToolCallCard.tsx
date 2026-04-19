@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Loader2, Wrench } from "lucide-react"
+import { AlertCircle, CheckCircle2, CircleSlash, Loader2, Wrench } from "lucide-react"
 
 import { PlotlyRenderer } from "@/components/stream/PlotlyRenderer"
 import { TableRenderer } from "@/components/stream/TableRenderer"
@@ -64,9 +64,20 @@ function StatusBadge({ status }: { status: ToolCallPart["status"] }) {
   }
   if (status === "success") {
     return (
-      <Badge variant="secondary" className="gap-1 bg-green-100 text-green-900 hover:bg-green-100 dark:bg-green-950 dark:text-green-100">
+      <Badge
+        variant="secondary"
+        className="gap-1 bg-green-100 text-green-900 hover:bg-green-100 dark:bg-green-950 dark:text-green-100"
+      >
         <CheckCircle2 className="size-3" />
         done
+      </Badge>
+    )
+  }
+  if (status === "cancelled") {
+    return (
+      <Badge variant="outline" className="gap-1 text-muted-foreground">
+        <CircleSlash className="size-3" />
+        interrompu
       </Badge>
     )
   }
