@@ -1,6 +1,7 @@
 import { TextStream } from "@/components/stream/TextStream"
 import { ThinkingBlock } from "@/components/stream/ThinkingBlock"
 import { ToolCallCard } from "@/components/stream/ToolCallCard"
+import { TypingDots } from "@/components/stream/TypingDots"
 import type { AssistantMessage, MessagePart } from "@/state/chat-reducer"
 
 type Props = {
@@ -22,6 +23,7 @@ export function MessageItem({ message }: Props) {
 
       {/* Assistant parts */}
       <div className="space-y-3">
+        {message.parts.length === 0 && isStreaming && <TypingDots />}
         {message.parts.map((part, i) => (
           <PartRenderer
             key={i}

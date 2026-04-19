@@ -1,4 +1,5 @@
 import { useCallback, useReducer, useRef } from "react"
+import { toast } from "sonner"
 
 import { streamSse } from "@/lib/sse"
 import {
@@ -43,9 +44,13 @@ export function useChatStream(): UseChatStream {
           onEvent: (msg) => {
             if (!msg.event || !msg.data) return
             const evt = JSON.parse(msg.data) as SseEvent
-            // Keep the session id from the first run so multi-turn works.
             if (evt.type === "run.start") {
               sessionRef.current = evt.session_id
+            }
+            if (evt.type === "error") {
+              toast.error("L'agent a rencontré une erreur", {
+                description: evt.message.slice(0, 200),
+              })
             }
             dispatch(toAction(evt))
           },
@@ -53,7 +58,9 @@ export function useChatStream(): UseChatStream {
       )
     } catch (err) {
       if ((err as Error).name === "AbortError") return
-      dispatch({ type: "ERROR", message: (err as Error).message })
+      const message = (err as Error).message
+      toast.error("Connexion interrompue", { description: message })
+      dispatch({ type: "ERROR", message })
     }
   }, [])
 

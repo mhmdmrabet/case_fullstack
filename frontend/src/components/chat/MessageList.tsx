@@ -1,14 +1,16 @@
 import { useEffect, useRef } from "react"
 
+import { EmptyState } from "@/components/chat/EmptyState"
 import { MessageItem } from "@/components/chat/MessageItem"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { AssistantMessage } from "@/state/chat-reducer"
 
 type Props = {
   messages: AssistantMessage[]
+  onSendPrompt: (prompt: string) => void
 }
 
-export function MessageList({ messages }: Props) {
+export function MessageList({ messages, onSendPrompt }: Props) {
   const anchorRef = useRef<HTMLDivElement>(null)
 
   // Naive autoscroll: jump to bottom on every new part.
@@ -18,7 +20,7 @@ export function MessageList({ messages }: Props) {
   }, [messages])
 
   if (messages.length === 0) {
-    return <EmptyState />
+    return <EmptyState onSendPrompt={onSendPrompt} />
   }
 
   return (
@@ -35,20 +37,5 @@ export function MessageList({ messages }: Props) {
         <div ref={anchorRef} />
       </div>
     </ScrollArea>
-  )
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-1 items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-semibold tracking-tight">
-          Que veux-tu analyser ?
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Pose une question en français sur tes datasets CSV.
-        </p>
-      </div>
-    </div>
   )
 }
