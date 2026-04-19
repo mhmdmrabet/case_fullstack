@@ -1,5 +1,6 @@
-import { AlertCircle, BarChart3, CheckCircle2, Loader2, Wrench } from "lucide-react"
+import { AlertCircle, CheckCircle2, Loader2, Wrench } from "lucide-react"
 
+import { PlotlyRenderer } from "@/components/stream/PlotlyRenderer"
 import { TableRenderer } from "@/components/stream/TableRenderer"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -30,7 +31,7 @@ export function ToolCallCard({ toolCall }: Props) {
 
         {!sql && toolCall.argsDone && (
           <pre className="overflow-auto rounded bg-muted p-3 text-xs font-mono">
-            {JSON.stringify(toolCall.argsDone, null, 2)}
+            {prettyArgs(toolCall.argsDone)}
           </pre>
         )}
 
@@ -38,12 +39,8 @@ export function ToolCallCard({ toolCall }: Props) {
           <TableRenderer payload={toolCall.payload} />
         )}
 
-        {/* Figure payload is rendered in step 11 by PlotlyRenderer. */}
         {toolCall.payload?.kind === "figure" && (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <BarChart3 className="size-3.5" />
-            Figure prête (rendu Plotly en étape 11).
-          </p>
+          <PlotlyRenderer payload={toolCall.payload} />
         )}
 
         {toolCall.status === "error" && toolCall.summary && (
@@ -83,25 +80,42 @@ function StatusBadge({ status }: { status: ToolCallPart["status"] }) {
 
 /**
  * Try to extract a SQL query from the tool call args for pretty-printing.
- * Priority: streamed args (argsRaw, shown char-by-char if Claude) > argsDone.sql.
+ * Handles three shapes:
+ *   1. Streamed args (argsRaw) — Claude streams JSON char-by-char
+ *   2. argsDone as dict — Gemini path
+ *   3. argsDone as JSON string — OpenAI path (stringified function arguments)
  */
 function extractSql(toolCall: ToolCallPart): string | null {
   if (toolCall.argsRaw) {
-    // Best-effort: parse the JSON-in-progress to extract sql
     const match = toolCall.argsRaw.match(/"sql"\s*:\s*"((?:[^"\\]|\\.)*)"?/)
     if (match?.[1]) return unescapeJson(match[1])
   }
-  if (
-    toolCall.argsDone &&
-    typeof toolCall.argsDone === "object" &&
-    "sql" in toolCall.argsDone &&
-    typeof toolCall.argsDone.sql === "string"
-  ) {
-    return toolCall.argsDone.sql
-  }
+
+  const args = parseArgs(toolCall.argsDone)
+  if (args && typeof args.sql === "string") return args.sql
+
   return null
+}
+
+function parseArgs(
+  argsDone: ToolCallPart["argsDone"],
+): Record<string, unknown> | null {
+  if (!argsDone) return null
+  if (typeof argsDone === "object") return argsDone as Record<string, unknown>
+  try {
+    const parsed = JSON.parse(argsDone)
+    return typeof parsed === "object" && parsed !== null ? parsed : null
+  } catch {
+    return null
+  }
 }
 
 function unescapeJson(s: string): string {
   return s.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\")
+}
+
+function prettyArgs(argsDone: ToolCallPart["argsDone"]): string {
+  const parsed = parseArgs(argsDone)
+  if (parsed) return JSON.stringify(parsed, null, 2)
+  return typeof argsDone === "string" ? argsDone : JSON.stringify(argsDone, null, 2)
 }
