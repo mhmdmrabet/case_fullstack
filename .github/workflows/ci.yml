@@ -68,7 +68,7 @@ jobs:
     # Only run when an OpenAI key is configured (skips on forks / first push without secret).
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     env:
-      MODEL: openai:gpt-5-mini
+      MODEL: openai:gpt-5.4-mini-2026-03-17
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v6
