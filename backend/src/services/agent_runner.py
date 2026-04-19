@@ -25,6 +25,7 @@ from pydantic_ai.messages import (
     TextPartDelta,
     ToolCallPart,
     ToolCallPartDelta,
+    ToolReturnPart,
 )
 
 from src.agent.agent import create_agent
@@ -226,7 +227,13 @@ async def _stream_tools_node(node, run_ctx, queue, seq, current_payload) -> None
 
             elif isinstance(event, FunctionToolResultEvent):
                 result = event.result
-                status = "success" if result.outcome == "success" else "error"
+                # ToolReturnPart: success path. RetryPromptPart: validation/retry
+                # path (model will be asked to fix its args). Both surface here.
+                if isinstance(result, ToolReturnPart):
+                    status = "success" if result.outcome == "success" else "error"
+                else:  # RetryPromptPart
+                    status = "error"
+                tool_name = result.tool_name or "unknown"
                 summary = _truncate(str(result.content), 200)
                 payload = current_payload[0]
                 current_payload[0] = None
@@ -235,7 +242,7 @@ async def _stream_tools_node(node, run_ctx, queue, seq, current_payload) -> None
                     ToolResultEvent(
                         seq=next(seq),
                         tool_call_id=event.tool_call_id,
-                        tool_name=result.tool_name,
+                        tool_name=tool_name,
                         status=status,
                         summary=summary,
                         payload=payload,

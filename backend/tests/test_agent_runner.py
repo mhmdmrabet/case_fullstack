@@ -12,21 +12,27 @@ from unittest.mock import MagicMock
 
 import pytest
 from pydantic_ai.messages import (
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
     PartDeltaEvent,
     PartStartEvent,
+    RetryPromptPart,
     TextPart,
     TextPartDelta,
     ToolCallPart,
     ToolCallPartDelta,
+    ToolReturnPart,
 )
 
 from src.schemas.events import (
     TextDeltaEvent,
     ThinkingDeltaEvent,
     ToolCallArgsDeltaEvent,
+    ToolCallArgsDoneEvent,
     ToolCallStartEvent,
+    ToolResultEvent,
 )
-from src.services.agent_runner import _stream_model_node
+from src.services.agent_runner import _stream_model_node, _stream_tools_node
 from src.services.thinking_parser import ThinkingStreamParser
 
 # ---------------------------------------------------------------------------
@@ -145,3 +151,62 @@ async def test_tool_call_args_delta_is_forwarded():
     args_deltas = [e for e in emitted if isinstance(e, ToolCallArgsDeltaEvent)]
     assert len(args_deltas) == 2
     assert "".join(e.delta for e in args_deltas) == '{"sql":"SELECT 1"}'
+
+
+# ---------------------------------------------------------------------------
+# CallToolsNode: handle ToolReturnPart and RetryPromptPart
+# ---------------------------------------------------------------------------
+
+
+async def _drive_tools(events):
+    queue: asyncio.Queue = asyncio.Queue()
+    seq = itertools.count(1)
+    payload_slot: list = [None]
+    await _stream_tools_node(_FakeNode(events), MagicMock(), queue, seq, payload_slot)
+    out = []
+    while not queue.empty():
+        out.append(queue.get_nowait())
+    return out
+
+
+@pytest.mark.asyncio
+async def test_tool_return_part_emits_success_result():
+    call = ToolCallPart(
+        tool_name="query_data",
+        args={"sql": "SELECT 1"},
+        tool_call_id="tc-1",
+    )
+    ret = ToolReturnPart(
+        tool_name="query_data",
+        content="ok 1 row",
+        tool_call_id="tc-1",
+    )
+    events = [FunctionToolCallEvent(part=call), FunctionToolResultEvent(result=ret)]
+    emitted = await _drive_tools(events)
+    args_done = [e for e in emitted if isinstance(e, ToolCallArgsDoneEvent)]
+    results = [e for e in emitted if isinstance(e, ToolResultEvent)]
+    assert len(args_done) == 1
+    assert len(results) == 1
+    assert results[0].status == "success"
+    assert results[0].tool_name == "query_data"
+
+
+@pytest.mark.asyncio
+async def test_retry_prompt_part_does_not_crash():
+    """Regression: RetryPromptPart has no .outcome attribute — must not blow up."""
+    call = ToolCallPart(
+        tool_name="visualize",
+        args={"code": "bad"},
+        tool_call_id="tc-1",
+    )
+    retry = RetryPromptPart(
+        content="ValidationError: ...",
+        tool_name="visualize",
+        tool_call_id="tc-1",
+    )
+    events = [FunctionToolCallEvent(part=call), FunctionToolResultEvent(result=retry)]
+    emitted = await _drive_tools(events)
+    results = [e for e in emitted if isinstance(e, ToolResultEvent)]
+    assert len(results) == 1
+    assert results[0].status == "error"
+    assert results[0].tool_name == "visualize"
